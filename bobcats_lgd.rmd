@@ -1,0 +1,97 @@
+---
+title: "bobcat_lgd_analysis"
+author: "Lara Volski"
+date: "3/4/2022"
+output: html_document
+---
+
+---
+title: "bobcat_lgd_analysis"
+output: html_document
+---
+# Part 1) Setting up
+
+### 1.1 Load Packages
+```{r library.packages, include = FALSE}
+library(nlme)
+library(ggplot2)
+library(overlap)
+library(maptools)
+library(lubridate)
+library(plyr)
+library(camtrapR)
+library(dplyr)
+library(lme4)
+library(MASS)
+library(circular) #Watson2Test
+library(ggpattern)
+```
+
+### 1.2 Read in CSVs
+```{r csvs}
+# first the record tables
+record.table.phase1 <- read.csv("recordtable_phase1_15min.csv")
+record.table.phase2 <- read.csv("recordtable_phase2_15min.csv")
+record.table.phase3 <- read.csv("recordtable_phase3_15min.csv")
+record.table.phase4 <- read.csv("recordtable_phase4_15min.csv")
+
+## Question -- are the record table time intervals already set so that all photos that occured within 15 min will count as one detection?
+
+# import camera phase operation dates
+cam.operation.phase1 <- read.csv("camera_operation_phase1.csv", header=T)
+cam.operation.phase2 <- read.csv("camera_operation_phase2.csv", header=T)
+cam.operation.phase3 <- read.csv("camera_operation_phase3.csv", header=T)
+cam.operation.phase4 <- read.csv("camera_operation_phase4.csv", header=T)
+
+# reading in metadata
+metadata <- read.csv("camera_metadata_rasters.csv", header=T)
+```
+
+### 1.3 Plot Species Richness across cameras by lat and long
+```{r species.richness.plot}
+#Phase1
+detectionMaps(CTtable = cam.operation.phase1, 
+              recordTable = record.table.phase1, 
+              stationCol = "Camera", 
+              Xcol = "Latitude", 
+              Ycol = "Longitude",
+              richnessPlot = TRUE,
+              printLabels = TRUE)
+
+# remove species that we don't care about (here, removing birds, opposum, nothing, mice, pigs, and squirrels) 
+for (species in c("Bat", "Bird", "Jack_Rabbit", "Pig", "Raccoon", "Rodent", "Skunk", "Squirrel", "Turkey", "Unknown")) {
+  record.table.phase1 <- record.table.phase1[record.table.phase1$Species != species, ]
+}
+```
+
+### RAI
+```{r RAI}
+# calculate RAI for each period
+
+# change camera, phase, and species to factor
+record.table.phase1$Camera <- as.factor(record.table.phase1$Camera)
+record.table.phase1$Species <- droplevels(as.factor(record.table.phase1$Species))
+
+
+# calculate number of observations of each species
+rai <- record.table.phase1 %>%
+  dplyr::group_by(Species, Camera, .drop = FALSE) %>%
+  dplyr::summarise(Detections = n()) 
+
+# merge with record table
+rai <- merge(rai, cam.operation.phase1)
+
+# calculate RAI
+rai$RAI <- rai$Detections / rai$Operation
+
+# remove records where camera was operating for <10 days
+for (i in 1:nrow(rai)) {
+  if(rai$Operation[i] < 10) {
+    rai$Detections[i] <- NA
+    rai$RAI[i] <- NA
+  } 
+}
+
+# join raster metadata
+rai <- left_join(rai, metadata)
+```
