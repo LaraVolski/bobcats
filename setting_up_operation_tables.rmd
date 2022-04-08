@@ -49,9 +49,12 @@ for (i in 1:nrow(all_phases)) {
     }
 }
 
-## There is also a gap in B14 between phase 3 and 4; add in a problem
+## There is also a mismatch between B14 and C17 between phase 3 and 4; add in a problem
+## First confirm that there is NOT a problem in problem 1
+## Actually, C17 is NOT mismatched; the start of 4 is a day BEFORE the end of phase 3 so we don't actually want to add a problem here. So only do this for camera B14
+View(all_phases)
 for (i in 1:nrow(all_phases)) {
-    if (all_phases$End_3[i] != all_phases$Start_4[i]) {
+    if (all_phases$End_3[i] != all_phases$Start_4[i] & all_phases$Camera[i] == "B14") {
             all_phases$Problem1_from_1[i] <- all_phases$End_3[i]
             all_phases$Problem1_to_1[i] <- all_phases$Start_4[i]
     }
