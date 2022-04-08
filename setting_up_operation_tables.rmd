@@ -1,0 +1,126 @@
+---
+title: "Operations_Combining"
+author: "Lara Volski"
+date: "4/5/2022"
+output: html_document
+---
+```{r}
+library(tidyverse)
+
+# bring in all 3 camera operation spreadsheets, change column names
+phase1 <- read_csv("camera_operation_phase1.csv") %>% 
+    rename(Start_1 = "Start", End_1 = "End", Problem1_from_1 = "Problem1_from", Problem1_to_1 = "Problem1_to") %>% 
+    select(-"Notes") %>% select(-"Operation") # drop notes column
+phase2 <- read_csv("camera_operation_phase2.csv") %>% 
+    rename(Start_2 = "Start", End_2 = "End", Problem1_from_2 = "Problem1_from", Problem1_to_2 = "Problem1_to", Problem2_from_2 = "Problem2_from", Problem2_to_2 = "Problem2_to") %>% select(-"Operation") %>%
+    select(-c("Problem1_notes", "Problem2_notes")) # drop notes columns
+phase3 <- read_csv("camera_operation_phase3.csv") %>% 
+    rename(Start_3 = "Start", End_3 = "End", Problem1_from_3 = "Problem1_from", Problem1_to_3 = "Problem1_to") %>% 
+    select(-"Problem1_notes") %>% select(-"Operation")  # drop notes columns
+phase4 <- read_csv("camera_operation_phase4.csv") %>%
+    rename(Start_4 = "Start", End_4 = "End", Problem1_from_4 = "Problem1_from", Problem1_to_4 = "Problem1_to") %>%
+    select(-"Problem1_notes") %>% select(-"Operation") #drop notes columns
+
+# combine into one
+all_phases <- left_join(phase1, phase2) %>% left_join(phase3) %>% left_join(phase4)
+
+# make sure that end of phase 1 is same as start as phase 2
+all_phases %>% 
+    filter(End_1 != Start_2)
+
+# make sure that end of phase 2 is same as start as phase 3
+all_phases %>% 
+    filter(End_2 != Start_3)
+
+## make sure that end of phase 3 is same as start as phase 4
+all_phases %>% 
+    filter(End_3 != Start_4)
+
+# we see there is a gap in F08 between phase 2 and 3 (I think battery had died); add in a problem
+## note that this works because there was NOT already a problem... would need to rework this if there was, so as not to overwrite
+for (i in 1:nrow(all_phases)) {
+    if (all_phases$End_2[i] != all_phases$Start_3[i]) {
+            all_phases$Problem1_from_1[i] <- all_phases$End_2[i]
+            all_phases$Problem1_to_1[i] <- all_phases$Start_3[i]
+    }
+}
+
+## There is also a gap in B14 between phase 3 and 4; add in a problem
+for (i in 1:nrow(all_phases)) {
+    if (all_phases$End_3[i] != all_phases$Start_4[i]) {
+            all_phases$Problem1_from_1[i] <- all_phases$End_3[i]
+            all_phases$Problem1_to_1[i] <- all_phases$Start_4[i]
+    }
+}
+
+
+# drop the other start and end dates, and rename the problems
+all_phases <- all_phases %>% 
+    rename(Start = "Start_1", End = "End_4", 
+           Problem1_from = "Problem1_from_1", Problem1_to = "Problem1_to_1",
+           Problem2_from = "Problem1_from_2", Problem2_to = "Problem1_to_2",
+           Problem3_from = "Problem2_from_2", Problem3_to = "Problem2_to_2",
+           Problem4_from = "Problem1_from_3", Problem4_to = "Problem1_to_4",
+           ) %>% 
+    select(Camera, Start, End, Latitude, Longitude, Problem1_from, Problem1_to, Problem2_from, Problem2_to, Problem3_from, Problem3_to, Problem4_from, Problem4_to)
+
+copy <- all_phases
+
+# sort out the problem order - this basically goes through and shifts all of the problems to the "left"
+for (i in 1:nrow(all_phases)) {
+    
+    if( (is.na(all_phases$Problem3_from[i]) == TRUE) & (is.na(all_phases$Problem4_from[i]) == FALSE)) {
+        all_phases$Problem3_from[i] <- all_phases$Problem4_from[i]
+        all_phases$Problem3_to[i] <- all_phases$Problem4_to[i]
+        all_phases$Problem4_from[i] <- NA
+        all_phases$Problem4_to[i] <- NA
+    }
+    
+    if( (is.na(all_phases$Problem2_from[i]) == TRUE) & (is.na(all_phases$Problem3_from[i]) == FALSE)) {
+        all_phases$Problem2_from[i] <- all_phases$Problem3_from[i]
+        all_phases$Problem2_to[i] <- all_phases$Problem3_to[i]
+        all_phases$Problem3_from[i] <- NA
+        all_phases$Problem3_to[i] <- NA
+    }
+    
+    if( (is.na(all_phases$Problem1_from[i]) == TRUE) & (is.na(all_phases$Problem2_from[i]) == FALSE)) {
+        all_phases$Problem1_from[i] <- all_phases$Problem2_from[i]
+        all_phases$Problem1_to[i] <- all_phases$Problem2_to[i]
+        all_phases$Problem2_from[i] <- NA
+        all_phases$Problem2_to[i] <- NA
+    }
+}
+
+# may need to run that loop twice in a row if there are still gaps after running the first time (no harm in doing it anyway, here it is copied again)
+for (i in 1:nrow(all_phases)) {
+    
+    if( (is.na(all_phases$Problem3_from[i]) == TRUE) & (is.na(all_phases$Problem4_from[i]) == FALSE)) {
+        all_phases$Problem3_from[i] <- all_phases$Problem4_from[i]
+        all_phases$Problem3_to[i] <- all_phases$Problem4_to[i]
+        all_phases$Problem4_from[i] <- NA
+        all_phases$Problem4_to[i] <- NA
+    }
+    
+    if( (is.na(all_phases$Problem2_from[i]) == TRUE) & (is.na(all_phases$Problem3_from[i]) == FALSE)) {
+        all_phases$Problem2_from[i] <- all_phases$Problem3_from[i]
+        all_phases$Problem2_to[i] <- all_phases$Problem3_to[i]
+        all_phases$Problem3_from[i] <- NA
+        all_phases$Problem3_to[i] <- NA
+    }
+    
+    if( (is.na(all_phases$Problem1_from[i]) == TRUE) & (is.na(all_phases$Problem2_from[i]) == FALSE)) {
+        all_phases$Problem1_from[i] <- all_phases$Problem2_from[i]
+        all_phases$Problem1_to[i] <- all_phases$Problem2_to[i]
+        all_phases$Problem2_from[i] <- NA
+        all_phases$Problem2_to[i] <- NA
+    }
+}
+
+# drop any columns that are all blank (Problem 4)
+not_all_na <- function(x) {!all(is.na(x))} # write little function
+all_phases <- all_phases %>% select_if(not_all_na)
+
+# export!
+write.csv(all_phases, "data/camera_operation_phase123.csv", row.names = F)
+```
+
