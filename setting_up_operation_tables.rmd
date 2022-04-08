@@ -10,13 +10,17 @@ library(tidyverse)
 # bring in all 3 camera operation spreadsheets, change column names
 phase1 <- read_csv("camera_operation_phase1.csv") %>% 
     rename(Start_1 = "Start", End_1 = "End", Problem1_from_1 = "Problem1_from", Problem1_to_1 = "Problem1_to") %>% 
-    select(-"Notes") %>% select(-"Operation") # drop notes column
+    select(-"Notes") %>% select(-"Operation") # drop notes column + operation dates that I had inputted
+
 phase2 <- read_csv("camera_operation_phase2.csv") %>% 
-    rename(Start_2 = "Start", End_2 = "End", Problem1_from_2 = "Problem1_from", Problem1_to_2 = "Problem1_to", Problem2_from_2 = "Problem2_from", Problem2_to_2 = "Problem2_to") %>% select(-"Operation") %>%
-    select(-c("Problem1_notes", "Problem2_notes")) # drop notes columns
+    rename(Start_2 = "Start", End_2 = "End", Problem1_from_2 = "Problem1_from", Problem1_to_2 = "Problem1_to", Problem2_from_2 = "Problem2_from",     
+    Problem2_to_2 = "Problem2_to") %>% select(-"Operation") %>%
+    select(-c("Problem1_notes", "Problem2_notes")) # drop notes columns + operation dates that I had inputted
+
 phase3 <- read_csv("camera_operation_phase3.csv") %>% 
     rename(Start_3 = "Start", End_3 = "End", Problem1_from_3 = "Problem1_from", Problem1_to_3 = "Problem1_to") %>% 
     select(-"Problem1_notes") %>% select(-"Operation")  # drop notes columns
+
 phase4 <- read_csv("camera_operation_phase4.csv") %>%
     rename(Start_4 = "Start", End_4 = "End", Problem1_from_4 = "Problem1_from", Problem1_to_4 = "Problem1_to") %>%
     select(-"Problem1_notes") %>% select(-"Operation") #drop notes columns
@@ -60,9 +64,10 @@ all_phases <- all_phases %>%
            Problem1_from = "Problem1_from_1", Problem1_to = "Problem1_to_1",
            Problem2_from = "Problem1_from_2", Problem2_to = "Problem1_to_2",
            Problem3_from = "Problem2_from_2", Problem3_to = "Problem2_to_2",
-           Problem4_from = "Problem1_from_3", Problem4_to = "Problem1_to_4",
+           Problem4_from = "Problem1_from_3", Problem4_to = "Problem1_to_3",
+           Problem5_from = "Problem1_from_4", Problem5_to = "Problem1_to_4",
            ) %>% 
-    select(Camera, Start, End, Latitude, Longitude, Problem1_from, Problem1_to, Problem2_from, Problem2_to, Problem3_from, Problem3_to, Problem4_from, Problem4_to)
+    select(Camera, Start, End, Latitude, Longitude, Problem1_from, Problem1_to, Problem2_from, Problem2_to, Problem3_from, Problem3_to, Problem4_from, Problem4_to, Problem5_from, Problem5_to)
 
 copy <- all_phases
 
