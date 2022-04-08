@@ -1,0 +1,350 @@
+---
+title: "bobcat_lgd_analysis"
+author: "Lara Volski"
+date: "3/4/2022"
+output: html_document
+---
+
+---
+title: "bobcat_lgd_analysis"
+output: html_document
+---
+# Part 1) Setting up
+
+### 1.1 Load Packages
+```{r library.packages, include = FALSE}
+library(nlme)
+library(ggplot2)
+library(overlap)
+library(maptools)
+library(lubridate)
+library(plyr)
+library(camtrapR)
+library(dplyr)
+library(lme4)
+library(MASS)
+library(circular) #Watson2Test
+library(ggpattern)
+<<<<<<< HEAD
+library(tidyverse)
+library(shiny)
+library(shinythemes)
+library(overlap)
+library(here)
+library(shinydashboard)
+library(leaflet)
+library(sp)
+library(rgdal)
+library(broom)
+library(viridis)
+library(ggmap)
+library(magrittr)
+library(sf)
+library(scales)
+library(tidyverse)
+=======
+>>>>>>> 1e6e63b57def156fb6840d889d80589e9a84a093
+```
+
+### 1.2 Read in CSVs
+```{r csvs}
+# first the record tables
+record.table.phase1 <- read.csv("recordtable_phase1_15min.csv")
+record.table.phase2 <- read.csv("recordtable_phase2_15min.csv")
+record.table.phase3 <- read.csv("recordtable_phase3_15min.csv")
+record.table.phase4 <- read.csv("recordtable_phase4_15min.csv")
+
+<<<<<<< HEAD
+record.table.all <- bind_rows(record.table.phase1, record.table.phase2, record.table.phase3, record.table.phase4)
+
+=======
+>>>>>>> 1e6e63b57def156fb6840d889d80589e9a84a093
+## Question -- are the record table time intervals already set so that all photos that occured within 15 min will count as one detection?
+
+# import camera phase operation dates
+cam.operation.phase1 <- read.csv("camera_operation_phase1.csv", header=T)
+cam.operation.phase2 <- read.csv("camera_operation_phase2.csv", header=T)
+cam.operation.phase3 <- read.csv("camera_operation_phase3.csv", header=T)
+cam.operation.phase4 <- read.csv("camera_operation_phase4.csv", header=T)
+
+# reading in metadata
+metadata <- read.csv("camera_metadata_rasters.csv", header=T)
+```
+
+<<<<<<< HEAD
+## Combining Operations!
+```{r}
+# bring in all 3 camera operation spreadsheets, change column names
+phase1 <- read_csv("data/camera_operation_phase1.csv") %>% 
+    rename(Start_1 = "Start", End_1 = "End", Problem1_from_1 = "Problem1_from", Problem1_to_1 = "Problem1_to") %>% 
+    select(-"Notes") # drop notes column
+phase2 <- read_csv("data/camera_operation_phase2.csv") %>% 
+    rename(Start_2 = "Start", End_2 = "End", Problem1_from_2 = "Problem1_from", Problem1_to_2 = "Problem1_to", Problem2_from_2 = "Problem2_from", Problem2_to_2 = "Problem2_to") %>% 
+    select(-c("Problem1_notes", "Problem2_notes")) # drop notes columns
+phase3 <- read_csv("data/camera_operation_phase3.csv") %>% 
+    rename(Start_3 = "Start", End_3 = "End", Problem1_from_3 = "Problem1_from", Problem1_to_3 = "Problem1_to") %>% 
+    select(-"Problem1_notes") # drop notes columns
+
+# then add phase 4!!
+
+# combine into one
+all_phases <- left_join(phase1, phase2) %>% left_join(phase3)
+```
+
+
+### 1.3 Plot Species Richness across cameras by lat and long
+```{r species.richness.plot}
+#Phase1
+detection.maps <- detectionMaps(CTtable = cam.operation.phase1, 
+=======
+### 1.3 Plot Species Richness across cameras by lat and long
+```{r species.richness.plot}
+#Phase1
+detectionMaps(CTtable = cam.operation.phase1, 
+>>>>>>> 1e6e63b57def156fb6840d889d80589e9a84a093
+              recordTable = record.table.phase1, 
+              stationCol = "Camera", 
+              Xcol = "Latitude", 
+              Ycol = "Longitude",
+              richnessPlot = TRUE,
+              printLabels = TRUE)
+
+# remove species that we don't care about (here, removing birds, opposum, nothing, mice, pigs, and squirrels) 
+for (species in c("Bat", "Bird", "Jack_Rabbit", "Pig", "Raccoon", "Rodent", "Skunk", "Squirrel", "Turkey", "Unknown")) {
+  record.table.phase1 <- record.table.phase1[record.table.phase1$Species != species, ]
+}
+<<<<<<< HEAD
+
+# generate camera operation matrix
+camera.operation.matrix <- cameraOperation(CTtable = cam.operation.phase1,
+                                           stationCol = "Camera",
+                                           setupCol = "Start",
+                                           retrievalCol = "End",
+                                           dateFormat = "%m/%d/%Y",
+                                           hasProblems = TRUE,
+                                           writecsv = FALSE)
+
+# Turn matrix into a dataframe
+camera.operation.matrix <- rownames_to_column(as.data.frame(camera.operation.matrix), var = "Camera")
+
+```
+
+### Kaitlyn's RAI Analysis Code
+```{r}
+## RAI calculation
+
+#### Define rai.calculate function
+# Create function that takes an operation matrix and record table and calculates RAI for dates of interest.
+#For this function to work, the record table must have a column called "Date" and it should have dates formatted as YYYY-MM-DD. The start and end date should be character strings formatted as "YYYY-MM-DD".
+
+rai.calculate <- function(record.table, start.date, end.date, camop, timeperiod.name) {
+  # define names to use in file names (just removes the dashes)
+  start.name <- gsub("-", "", start.date)
+  end.name <- gsub("-", "", end.date)
+  
+  # calculate how long the camera was functioning in that time period
+    
+    # selects columns within specified dates
+    camop.subset <- dplyr::select(camop, Camera, start.date:end.date) 
+    
+    # sum rows within specified dates (there are 1s when camera was operating, NA when not)
+    camop.subset$Operation <- rowSums(dplyr::select(camop.subset, start.date:end.date), na.rm=TRUE) 
+    
+    # get rid of the individual day columns, just select Camera, Operation
+    camop.subset <- dplyr::select(camop.subset, Camera, Operation)
+    
+  # format start and end dates as dates
+  start.date <- as.Date(start.date)
+  end.date <- as.Date(end.date)
+  
+  # subset record table to date of interest
+  record.table.subset <- record.table[record.table$Date >= start.date & record.table$Date <= end.date,]
+  
+  # calculate number of observations of each classification type at each camera
+  records <- record.table.subset %>%
+      dplyr::group_by(Classification, Camera) %>%
+      dplyr::summarise(Detections = n()) %>%     # counts number of observations of each species
+      spread(key = Classification, value = Detections)  # gets from long to wide format  
+  
+  # add columns for classes not present
+  records <- add_column(records, !!!allclassifications[!names(allclassifications) %in% names(records)])
+  
+  # gather data so each class-camera is its own row again
+  records <- records %>% gather(2:ncol(records), key = "Class", value = "Count")
+  
+  # replace NA with 0 
+  records[is.na(records)] <- 0
+  
+  # join camera operation dates and observations
+  RAI.table <- plyr::join(records, camop.subset)
+  
+  # calculate RAI
+  RAI.table$RAI <- RAI.table$Count / RAI.table$Operation
+  
+  # add new column for time period
+  RAI.table$TimePeriod <- timeperiod.name
+  
+  # write csv
+  write.csv(RAI.table, file = paste("RAI_", timeperiod.name, "_", start.name, "_", end.name, ".csv", collapse = "", sep = ""),row.names=F)
+    
+  return(RAI.table)
+  
+}
+```  
+
+#### The RAI function in action
+
+
+Here is an example of the RAI function in action, in relation to the hunting season. 
+```{r calculate RAI, message = F}
+# entire study period (from day the first camera went up)
+entire.phase1 <- rai.calculate(record.table = record.table.phase1, start.date = "2016-03-22", end.date = "2017-12-22", camop = camera.operation.matrix, timeperiod.name = "Phase1")
+```
+
+
+
+### Kaitlyn's Shiny Code
+```{r}
+
+# Data import -------------------------------------------------------------
+
+# Just for Phase 1 here
+record.table.phase1$Date <- as.Date(record.table.phase1$Date)
+## strip just month
+record.table.phase1$Month_Year <- format(as.Date(record.table.phase1$Date), "%Y-%m")
+
+# import camera operation spreadsheet
+# this code is turning the date into 2020!!! not 2016/2017!
+cam.operation.phase1 <- read_csv("camera_operation_phase1.csv") %>%
+  mutate_at(c("Start", "End", "Problem1_from", "Problem1_to"),
+            ~as.Date(., format = "%m/%d/%y"))
+
+# import camera metadata
+metadata <- read.csv("camera_metadata_rasters.csv", header=T) %>% 
+  rename(Elevation = elevation.clean, Slope = slope.clean, Vegetation = vegetation.clean,
+         Vegetation_Coarser = vegetation.coarser.clean2, BLM_Dist = blm.dist.clean,
+         Boundary_Dist = bound.dist.clean, Fence_Dist = fence.dist.clean, HQ_Dist = hq.dist.clean,
+         Road_Dist = road.dist.clean, Water_Dist = water.dist.clean, Ruggedness9 = rugged9.clean,
+         Ruggedness25 = rugged25.clean, Ruggedness49 = rugged49.clean, Ruggedness81 = rugged81.clean,
+         Ruggedness121 = rugged121.clean, Viewshed = viewshed.clean, Viewshed_Reclass = viewshed.reclass.clean,
+         NDVI2016 = ndvi.16.clean.1, Vegetation_Edge_Dist = veg.edges.dist.clean, Chaparral_Edge_Dist = chap.edges.dist.clean)
+
+# specify seasons for each month-year
+seasons <- tibble(
+  Month_Year = c("2016-03", "2016-04", "2016-05", "2016-06", 
+                 "2016-07", "2016-08", "2016-09", "2016-10", "2016-11", "2016-12",
+                 "2017-01", "2017-02", "2017-03", "2017-04", "2017-05", "2017-06", 
+                 "2017-07", "2017-08", "2017-09", "2017-10", "2017-11", "2017-12",
+                 "2018-01", "2018-02", "2018-03", "2018-04", "2018-05", "2018-06", 
+                 "2018-07", "2018-08", "2018-09", "2018-10", "2018-11", "2018-12",
+                 "2019-01", "2019-02", "2019-03", "2019-04", "2019-05", "2019-06", 
+                 "2019-07", "2019-08", "2019-09", "2019-10", "2019-11", "2019-12"),
+  Season = c("Spring", "Spring", "Spring", "Summer", 
+             "Summer", "Summer", "Fall", "Fall", "Fall", "Winter",
+             "Winter", "Winter", "Spring", "Spring", "Spring", "Summer", 
+             "Summer", "Summer", "Fall", "Fall", "Fall", "Winter",
+             "Winter", "Winter", "Spring", "Spring", "Spring", "Summer", 
+             "Summer", "Summer", "Fall", "Fall", "Fall", "Winter",
+             "Winter", "Winter", "Spring", "Spring", "Spring", "Summer", 
+             "Summer", "Summer", "Fall", "Fall", "Fall", "Winter")
+)
+
+# Data manipulation -------------------------------------------------------
+
+# join records and camera operation
+record.table.phase1 <- left_join(record.table.phase1, cam.operation.phase1)
+
+rai.monthly <- function(record.table.subset, camop, start.date, end.date) {
+  
+  # calculate how long the camera was functioning in that time period
+  
+  # change start and end date to character
+  start.date <- as.character(start.date)
+  end.date <- as.character(end.date)
+  
+  # selects columns within specified dates
+  camop.subset <- dplyr::select(camop, Camera, start.date:end.date)
+  
+  # transpose data frame
+  camop.subset.monthly <- as_tibble(cbind(names(camop.subset), t(camop.subset)))
+  colnames(camop.subset.monthly) <- as.character(unlist(camop.subset.monthly[1,]))
+  camop.subset.monthly = camop.subset.monthly[-1, ]
+  
+  # fix to make numeric
+  camop.subset.monthly[, 2:ncol(camop.subset.monthly)] %<>% mutate_if(is.character, as.numeric)
+  
+  # sum operation for all cameras
+  camop.subset.monthly$All <- camop.subset.monthly %>%
+    select(-Camera) %>%
+    rowSums(na.rm = TRUE)
+  
+  # add column for just month
+  camop.subset.monthly$Month_Year <- format(as.Date(camop.subset.monthly$Camera), "%Y-%m")
+  
+  # calculate number of operation days for each camera in each month-year
+  camop.subset.monthly.summary <- camop.subset.monthly %>%
+    dplyr::select(All, Month_Year) %>% # just select "all' and "Month_Year"
+    dplyr::group_by(Month_Year) %>%
+    dplyr::summarise(Operation = sum(All, na.rm = TRUE))
+  
+  # calculate for all cameras combined for each month-year
+  record_count_all <- record.table.subset %>%
+    dplyr::group_by(Month_Year) %>%
+    dplyr::summarise(Detections = n()) 
+  
+  # join camera operation dates and observations
+  RAI.table <- full_join(record_count_all, camop.subset.monthly.summary)
+  
+  # replace NA with 0 
+  RAI.table[is.na(RAI.table)] <- 0
+  
+  # calculate RAI
+  RAI.table$RAI <- RAI.table$Detections / RAI.table$Operation
+  
+  # replace infinity with NA
+  RAI.table %<>% mutate_if(is.numeric, list(~na_if(., Inf)))
+  
+  # merge with season
+  RAI.table <- left_join(RAI.table, seasons) %>% as.data.frame()
+  
+  return(RAI.table)
+  
+}
+
+rai.monthly(record.table.subset = record.table.phase1, camop = record.table.phase1, 2016-03-22, 2017-12-22)
+
+=======
+```
+
+### RAI
+```{r RAI}
+# calculate RAI for each period
+
+# change camera, phase, and species to factor
+record.table.phase1$Camera <- as.factor(record.table.phase1$Camera)
+record.table.phase1$Species <- droplevels(as.factor(record.table.phase1$Species))
+
+
+# calculate number of observations of each species
+rai <- record.table.phase1 %>%
+  dplyr::group_by(Species, Camera, .drop = FALSE) %>%
+  dplyr::summarise(Detections = n()) 
+
+# merge with record table
+rai <- merge(rai, cam.operation.phase1)
+
+# calculate RAI
+rai$RAI <- rai$Detections / rai$Operation
+
+# remove records where camera was operating for <10 days
+for (i in 1:nrow(rai)) {
+  if(rai$Operation[i] < 10) {
+    rai$Detections[i] <- NA
+    rai$RAI[i] <- NA
+  } 
+}
+
+# join raster metadata
+rai <- left_join(rai, metadata)
+>>>>>>> 1e6e63b57def156fb6840d889d80589e9a84a093
+```
