@@ -10,20 +10,21 @@ library(tidyverse)
 # bring in all 3 camera operation spreadsheets, change column names
 phase1 <- read_csv("camera_operation_phase1.csv") %>% 
     rename(Start_1 = "Start", End_1 = "End", Problem1_from_1 = "Problem1_from", Problem1_to_1 = "Problem1_to") %>% 
-    select(-"Notes") %>% select(-"Operation") # drop notes column + operation dates that I had inputted
+    select(-c("Notes", "Operation")) # drop notes column + operation dates that I had inputted
 
 phase2 <- read_csv("camera_operation_phase2.csv") %>% 
-    rename(Start_2 = "Start", End_2 = "End", Problem1_from_2 = "Problem1_from", Problem1_to_2 = "Problem1_to", Problem2_from_2 = "Problem2_from",     
-    Problem2_to_2 = "Problem2_to") %>% select(-"Operation") %>%
-    select(-c("Problem1_notes", "Problem2_notes")) # drop notes columns + operation dates that I had inputted
+    rename(Start_2 = "Start", End_2 = "End", Problem1_from_2 = "Problem1_from", Problem1_to_2 = "Problem1_to", 
+           Problem2_from_2 = "Problem2_from", Problem2_to_2 = "Problem2_to") %>% 
+    select(-c("Problem1_notes", "Problem2_notes", "Operation")) # drop notes columns + operation dates that I had inputted
 
 phase3 <- read_csv("camera_operation_phase3.csv") %>% 
     rename(Start_3 = "Start", End_3 = "End", Problem1_from_3 = "Problem1_from", Problem1_to_3 = "Problem1_to") %>% 
-    select(-"Problem1_notes") %>% select(-"Operation")  # drop notes columns
+    select(-c("Problem1_notes", "Operation")) 
 
 phase4 <- read_csv("camera_operation_phase4.csv") %>%
-    rename(Start_4 = "Start", End_4 = "End", Problem1_from_4 = "Problem1_from", Problem1_to_4 = "Problem1_to") %>%
-    select(-"Problem1_notes") %>% select(-"Operation") #drop notes columns
+    rename(Start_4 = "Start", End_4 = "End", Problem1_from_4 = "Problem1_from", Problem1_to_4 = "Problem1_to",
+           Problem2_from_4 = "Problem2_from", Problem2_to_4 = "Problem2_to") %>%
+    select(-c("Operation", "Problem1_notes")) #drop notes columns
 
 # combine into one
 all_phases <- left_join(phase1, phase2) %>% left_join(phase3) %>% left_join(phase4)
@@ -69,38 +70,26 @@ all_phases <- all_phases %>%
            Problem3_from = "Problem2_from_2", Problem3_to = "Problem2_to_2",
            Problem4_from = "Problem1_from_3", Problem4_to = "Problem1_to_3",
            Problem5_from = "Problem1_from_4", Problem5_to = "Problem1_to_4",
+           Problem6_from = "Problem2_from_4", Problem6_to = "Problem2_to_4"
            ) %>% 
-    select(Camera, Start, End, Latitude, Longitude, Problem1_from, Problem1_to, Problem2_from, Problem2_to, Problem3_from, Problem3_to, Problem4_from, Problem4_to, Problem5_from, Problem5_to)
-
-copy <- all_phases
+    select(Camera, Start, End, Latitude, Longitude, Problem1_from, Problem1_to, Problem2_from, Problem2_to, Problem3_from, Problem3_to, Problem4_from, Problem4_to, Problem5_from, Problem5_to, Problem6_from, Problem6_to)
 
 # sort out the problem order - this basically goes through and shifts all of the problems to the "left"
 for (i in 1:nrow(all_phases)) {
     
-    if( (is.na(all_phases$Problem3_from[i]) == TRUE) & (is.na(all_phases$Problem4_from[i]) == FALSE)) {
-        all_phases$Problem3_from[i] <- all_phases$Problem4_from[i]
-        all_phases$Problem3_to[i] <- all_phases$Problem4_to[i]
-        all_phases$Problem4_from[i] <- NA
-        all_phases$Problem4_to[i] <- NA
+        if( (is.na(all_phases$Problem5_from[i]) == TRUE) & (is.na(all_phases$Problem6_from[i]) == FALSE)) {
+        all_phases$Problem5_from[i] <- all_phases$Problem6_from[i]
+        all_phases$Problem5_to[i] <- all_phases$Problem6_to[i]
+        all_phases$Problem6_from[i] <- NA
+        all_phases$Problem6_to[i] <- NA
     }
     
-    if( (is.na(all_phases$Problem2_from[i]) == TRUE) & (is.na(all_phases$Problem3_from[i]) == FALSE)) {
-        all_phases$Problem2_from[i] <- all_phases$Problem3_from[i]
-        all_phases$Problem2_to[i] <- all_phases$Problem3_to[i]
-        all_phases$Problem3_from[i] <- NA
-        all_phases$Problem3_to[i] <- NA
+        if( (is.na(all_phases$Problem4_from[i]) == TRUE) & (is.na(all_phases$Problem5_from[i]) == FALSE)) {
+        all_phases$Problem4_from[i] <- all_phases$Problem5_from[i]
+        all_phases$Problem4_to[i] <- all_phases$Problem5_to[i]
+        all_phases$Problem5_from[i] <- NA
+        all_phases$Problem5_to[i] <- NA
     }
-    
-    if( (is.na(all_phases$Problem1_from[i]) == TRUE) & (is.na(all_phases$Problem2_from[i]) == FALSE)) {
-        all_phases$Problem1_from[i] <- all_phases$Problem2_from[i]
-        all_phases$Problem1_to[i] <- all_phases$Problem2_to[i]
-        all_phases$Problem2_from[i] <- NA
-        all_phases$Problem2_to[i] <- NA
-    }
-}
-
-# may need to run that loop twice in a row if there are still gaps after running the first time (no harm in doing it anyway, here it is copied again)
-for (i in 1:nrow(all_phases)) {
     
     if( (is.na(all_phases$Problem3_from[i]) == TRUE) & (is.na(all_phases$Problem4_from[i]) == FALSE)) {
         all_phases$Problem3_from[i] <- all_phases$Problem4_from[i]
@@ -124,11 +113,15 @@ for (i in 1:nrow(all_phases)) {
     }
 }
 
-# drop any columns that are all blank (Problem 4)
+# may need to run that loop multiple times in a row if there are still gaps after running the first time
+# KG note: For combinining phases 1-4, the foor loop needs to be run FOUR TIMES. Just select and run 4 times and then you'll have a cleaned output!
+View(all_phases)
+
+# drop any columns that are all blank (Problems 5 & 6)
 not_all_na <- function(x) {!all(is.na(x))} # write little function
 all_phases <- all_phases %>% select_if(not_all_na)
 
 # export!
-write.csv(all_phases, "data/camera_operation_phase123.csv", row.names = F)
+write.csv(all_phases, "camera_operation_phase1234.csv", row.names = F)
 ```
 
