@@ -53,37 +53,14 @@ record.table.phase4 <- read.csv("recordtable_phase4_15min.csv")
 
 record.table.all <- bind_rows(record.table.phase1, record.table.phase2, record.table.phase3, record.table.phase4)
 
-## Question -- are the record table time intervals already set so that all photos that occured within 15 min will count as one detection?
+## Question -- are the record table time intervals already set so that all photos that occured within 15 min will count as one detection? # I believe so, after comparing it to other recordtables in Dropbox.
 
 # import camera phase operation dates
-cam.operation.phase1 <- read.csv("camera_operation_phase1.csv", header=T)
-cam.operation.phase2 <- read.csv("camera_operation_phase2.csv", header=T)
-cam.operation.phase3 <- read.csv("camera_operation_phase3.csv", header=T)
-cam.operation.phase4 <- read.csv("camera_operation_phase4.csv", header=T)
+cam.operation.all.phases <- read.csv("camera_operation_all_phases1234.csv", header=T)
 
 # reading in metadata
 metadata <- read.csv("camera_metadata_rasters.csv", header=T)
 ```
-
-## Combining Operations!
-```{r}
-# bring in all 3 camera operation spreadsheets, change column names
-phase1 <- read_csv("data/camera_operation_phase1.csv") %>% 
-    rename(Start_1 = "Start", End_1 = "End", Problem1_from_1 = "Problem1_from", Problem1_to_1 = "Problem1_to") %>% 
-    select(-"Notes") # drop notes column
-phase2 <- read_csv("data/camera_operation_phase2.csv") %>% 
-    rename(Start_2 = "Start", End_2 = "End", Problem1_from_2 = "Problem1_from", Problem1_to_2 = "Problem1_to", Problem2_from_2 = "Problem2_from", Problem2_to_2 = "Problem2_to") %>% 
-    select(-c("Problem1_notes", "Problem2_notes")) # drop notes columns
-phase3 <- read_csv("data/camera_operation_phase3.csv") %>% 
-    rename(Start_3 = "Start", End_3 = "End", Problem1_from_3 = "Problem1_from", Problem1_to_3 = "Problem1_to") %>% 
-    select(-"Problem1_notes") # drop notes columns
-
-# then add phase 4!!
-
-# combine into one
-all_phases <- left_join(phase1, phase2) %>% left_join(phase3)
-```
-
 
 ### 1.3 Plot Species Richness across cameras by lat and long
 ```{r species.richness.plot}
@@ -102,7 +79,7 @@ for (species in c("Bat", "Bird", "Jack_Rabbit", "Pig", "Raccoon", "Rodent", "Sku
 }
 
 # generate camera operation matrix
-camera.operation.matrix <- cameraOperation(CTtable = cam.operation.phase1,
+camera.operation.matrix <- cameraOperation(CTtable = cam.operation.all.phases,
                                            stationCol = "Camera",
                                            setupCol = "Start",
                                            retrievalCol = "End",
@@ -181,10 +158,9 @@ rai.calculate <- function(record.table, start.date, end.date, camop, timeperiod.
 #### The RAI function in action
 
 
-Here is an example of the RAI function in action, in relation to the hunting season. 
+Here is an example of the RAI function in action
 ```{r calculate RAI, message = F}
-# entire study period (from day the first camera went up)
-entire.phase1 <- rai.calculate(record.table = record.table.phase1, start.date = "2016-03-22", end.date = "2017-12-22", camop = camera.operation.matrix, timeperiod.name = "Phase1")
+test <- rai.calculate(record.table = record.table.all, start.date = "2016-03-22", end.date = "2018-01-17", camop = camera.operation.matrix, timeperiod.name = "test")
 ```
 
 
