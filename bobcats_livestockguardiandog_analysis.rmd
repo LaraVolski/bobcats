@@ -65,8 +65,8 @@ metadata <- read.csv("camera_metadata_rasters.csv", header=T)
 ### 1.3 Plot Species Richness across cameras by lat and long
 ```{r species.richness.plot}
 #Phase1
-detection.maps <- detectionMaps(CTtable = cam.operation.phase1, 
-              recordTable = record.table.phase1, 
+detection.maps <- detectionMaps(CTtable = cam.operation.all.phases, 
+              recordTable = record.table.all, 
               stationCol = "Camera", 
               Xcol = "Latitude", 
               Ycol = "Longitude",
@@ -75,7 +75,7 @@ detection.maps <- detectionMaps(CTtable = cam.operation.phase1,
 
 # remove species that we don't care about (here, removing birds, opposum, nothing, mice, pigs, and squirrels) 
 for (species in c("Bat", "Bird", "Jack_Rabbit", "Pig", "Raccoon", "Rodent", "Skunk", "Squirrel", "Turkey", "Unknown")) {
-  record.table.phase1 <- record.table.phase1[record.table.phase1$Species != species, ]
+  record.table.all <- record.table.all[record.table.all$Species != species, ]
 }
 
 # generate camera operation matrix
@@ -156,7 +156,6 @@ rai.calculate <- function(record.table, start.date, end.date, camop, timeperiod.
 ```  
 
 #### The RAI function in action
-
 
 Here is an example of the RAI function in action
 ```{r calculate RAI, message = F}
