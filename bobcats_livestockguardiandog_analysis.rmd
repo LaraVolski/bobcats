@@ -51,6 +51,13 @@ record.table.phase2 <- read.csv("recordtable_phase2_15min.csv")
 record.table.phase3 <- read.csv("recordtable_phase3_15min.csv")
 record.table.phase4 <- read.csv("recordtable_phase4_15min.csv")
 
+#correct phase dates
+record.table.phase1$Date <- format(as.Date(record.table.phase1$Date), "%m-%d-%Y")
+record.table.phase2$Date <- format(as.Date(record.table.phase2$Date), "%m-%d-%Y")
+record.table.phase3$Date <- format(as.Date(record.table.phase3$Date), "%m-%d-%Y")
+record.table.phase4$Date <- format(as.Date(record.table.phase4$Date), "%m-%d-%Y")
+
+# combine record tables
 record.table.all <- bind_rows(record.table.phase1, record.table.phase2, record.table.phase3, record.table.phase4)
 
 ## Question -- are the record table time intervals already set so that all photos that occured within 15 min will count as one detection? # I believe so, after comparing it to other recordtables in Dropbox.
@@ -62,22 +69,8 @@ cam.operation.all.phases <- read.csv("camera_operation_all_phases1234.csv", head
 metadata <- read.csv("camera_metadata_rasters.csv", header=T)
 ```
 
-### 1.3 Plot Species Richness across cameras by lat and long
-```{r species.richness.plot}
-#Phase1
-detection.maps <- detectionMaps(CTtable = cam.operation.all.phases, 
-              recordTable = record.table.all, 
-              stationCol = "Camera", 
-              Xcol = "Latitude", 
-              Ycol = "Longitude",
-              richnessPlot = TRUE,
-              printLabels = TRUE)
-
-# remove species that we don't care about (here, removing birds, opposum, nothing, mice, pigs, and squirrels) 
-for (species in c("Bat", "Bird", "Jack_Rabbit", "Pig", "Raccoon", "Rodent", "Skunk", "Squirrel", "Turkey", "Unknown")) {
-  record.table.all <- record.table.all[record.table.all$Species != species, ]
-}
-
+### Create a Camera Operation Matrix
+```{r camera.operation.matrix}
 # generate camera operation matrix
 camera.operation.matrix <- cameraOperation(CTtable = cam.operation.all.phases,
                                            stationCol = "Camera",
@@ -92,7 +85,25 @@ camera.operation.matrix <- rownames_to_column(as.data.frame(camera.operation.mat
 
 ```
 
-### Kaitlyn's RAI Analysis Code
+### Create a Classification Table
+```{r define unique classifications}
+# Define unique classification categories. We will need this later to ensure these columns are present in all tables. This list should be mutually exclusive with the species excluded above (probably a neater way to have done this, but can cross-check using 'unique' function).
+
+# define list of all classification columns that we want 
+allclassifications <- c(Bobcat = NA_real_, Coyote = NA_real_, Deer_Doe = NA_real_,
+                        Deer_Other = NA_real_, Deer_Fawn = NA_real_, Deer_Buck_Legal = NA_real_,
+                        Deer_Buck_Spike = NA_real_, Deer_Buck_Young_Button = NA_real_,
+                        Deer_Buck_Antlerless = NA_real_, Squirrel = NA_real_, Fox = NA_real_, 
+                        Skunk = NA_real_, Bear = NA_real_, Mountain_Lion = NA_real_, Raccoon = NA_real_,
+                        Jack_Rabbit = NA_real_, Dog = NA_real_, Sheep = NA_real_, Pig = NA_real_,
+                        Deer_Buck = NA_real_, Deer = NA_real_)  
+
+# double check (here, there are 21 unique classifications)
+length(allclassifications)
+unique(record.table.all$Classification)
+```
+
+### Kaitlyn's RAI Code
 ```{r}
 ## RAI calculation
 
@@ -156,15 +167,249 @@ rai.calculate <- function(record.table, start.date, end.date, camop, timeperiod.
 ```  
 
 #### The RAI function in action
-
 Here is an example of the RAI function in action
 ```{r calculate RAI, message = F}
-test <- rai.calculate(record.table = record.table.all, start.date = "2016-03-22", end.date = "2018-01-17", camop = camera.operation.matrix, timeperiod.name = "test")
+
+## only doing 3 months for now, but the idea is that it'll be march.2016, march.2017, march.2018, and so forth...
+
+## how do I account for the fact that march/2016 is shorter than other months bc dataset doesn't start until march 22?
+march.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-03-22", end.date = "2016-03-31", camop = camera.operation.matrix, timeperiod.name = "march.2016")
+
+april.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-04-01", end.date = "2016-04-30", camop = camera.operation.matrix, timeperiod.name = "april.2016")
+
+may.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-05-01", end.date = "2016-05-31", camop = camera.operation.matrix, timeperiod.name = "may.2016")
+
+
+```
+
+#### Combine RAI across seasons
+
+# Combine these before, during, and after hunt periods back together into a single data frame and add a column corresponding to the hunt period. 
+
+```{r RAI combine}
+# combine different RAI files
+all.rai <- rbind(march.2016, april.2016, may.2016)
+
+# add column for time period relative to month
+all.rai$month <- NA
+for (i in 1:nrow(all.rai)) {
+  if (all.rai$TimePeriod[i] == "march.2016" | all.rai$TimePeriod[i] == "april.2016") {
+    all.rai$month[i] <- "March2016"
+  }
+  if (all.rai$TimePeriod[i] == "april.2016" | all.rai$TimePeriod[i] == "may.2016") {
+    all.rai$month[i] <- "April2016"
+  }
+  if (all.rai$TimePeriod[i] == "may.2016" | all.rai$TimePeriod[i] == "june.2016" ) {
+    all.rai$month[i] <- "May2016"
+  }
+}
+
+# specify the factor level (so they plot in this order)
+all.rai$month <- fct_relevel(all.rai$month, "march.2016", "april.2016", "may.2016")
+# convert RAI to log scale, but first add 1 to everything so that 0s can be transformed
+all.rai$RAI.log <- log(all.rai$RAI + 1)
+# also apply square root transformation, to see if that changes anything
+all.rai$RAI.sqrt <- sqrt(all.rai$RAI)
+```
+
+
+For cameras that were operating for fewer than 10 days, I change the RAI to NA, because I don't want to calculate RAI based on so few trap-nights.
+
+```{r RAI clean}
+# for cameras that were operating <10 days, change Count and RAI to NA
+for (i in 1:nrow(all.rai)) {
+  if(all.rai$Operation[i] < 10) {
+    all.rai$Count[i] <- NA
+    all.rai$RAI[i] <- NA
+    all.rai$RAI.log[i] <- NA
+  } 
+}
+```
+```
+
+For cameras that were operating for fewer than 10 days, I change the RAI to NA, because I don't want to calculate RAI based on so few trap-nights.
+
+```{r RAI clean}
+# for cameras that were operating <10 days, change Count and RAI to NA
+for (i in 1:nrow(all.rai)) {
+  if(all.rai$Operation[i] < 10) {
+    all.rai$Count[i] <- NA
+    all.rai$RAI[i] <- NA
+    all.rai$RAI.log[i] <- NA
+  } 
+}
+```
+
+
+Calculate mean, SD, and standard error of RAI for each species/class (across cameras), with one row per species/class. Not actually using this for anything yet... code's here if need be. This particular approach isn't very good since it counts each camera 6 times (once per year-season).
+```{r summarize class RAI}
+# note that for species-camera pairs where there were no detections, the row is missing (rather than NA)
+rai.class.summary <- all.rai %>%
+  dplyr::group_by(Class, TimePeriod) %>%
+  dplyr::summarise(RAI.mean = mean(RAI, na.rm=T), 
+                   RAI.sd = sd(RAI, na.rm=T), 
+                   RAI.se = std.error(RAI, na.rm=T))
+```
+
+
+### Convert RAI table from long to wide
+
+Reshape the RAI table to combine records and operation dates from 2016 and 2017 seasons, and recalculate overall RAI for the periods before, during, and after the hunt. Then spread so that there are columns for each class RAI before, during, and after hunt, with one row for each camera.
+```{r long to wide}
+# summarize count and operation dates for before/during/after (combine 2016 and 2017 records)
+rai.summarized <- all.rai %>%
+  dplyr::group_by(Camera, Class, Hunt) %>%
+  dplyr::summarise(Operation = sum(Operation, na.rm=T), 
+                   Count = sum(Count, na.rm=T))
+# recalculate RAI for each species-period
+rai.summarized$RAI <- rai.summarized$Count / rai.summarized$Operation
+# recalculate log RAI for each species-period
+rai.summarized$RAI.log <- log(rai.summarized$RAI + 1)
+# and recalculate square root of RAI for each species-period
+rai.summarized$RAI.sqrt <- sqrt(rai.summarized$RAI + 1)
+# combine species and season into new column to use as key
+rai.summarized$Class_Hunt <- paste(rai.summarized$Class, "_", rai.summarized$Hunt, sep = "")
+# take just columns with camera, RAI, and key
+rai.wide <- rai.summarized[,c(1,6,9)]
+# spread so each class and season RAI (before, during, after hunt) is in its own column
+rai.wide <- tidyr::spread(rai.wide, key = Class_Hunt, value = RAI)
+# take just columns with camera, RAI.log, and key
+rai.wide.log <- rai.summarized[,c(1,7,9)]
+# spread so each class and season log RAI (before, during, after hunt) is in its own column
+rai.wide.log <- tidyr::spread(rai.wide.log, key = Class_Hunt, value = RAI.log)
+# take just columns with camera, RAI.sqrt, and key
+rai.wide.sqrt <- rai.summarized[,c(1,8,9)]
+# spread so each class and season sqrt RAI (before, during, after hunt) is in its own column
+rai.wide.sqrt <- tidyr::spread(rai.wide.sqrt, key = Class_Hunt, value = RAI.sqrt)
+```
+
+Merge camera metadata with RAI.
+
+```{r merge metadata with RAI, message = F}
+covariates <- read.csv(file = here::here('data', 'camera_metadata_rasters.csv'))
+# merge all of these with covariates
+rai.summarized <- merge(rai.summarized, covariates)
+rai.wide <- merge(rai.wide, covariates)
+rai.wide.log <- merge(rai.wide.log, covariates)
+all.rai <- plyr::join(all.rai, covariates)
 ```
 
 
 
-### Kaitlyn's Shiny Code
+
+```{r}
+# code to add later:
+
+## by month code
+# june.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-06-01", end.date = "2016-06-30", camop = camera.operation.matrix, timeperiod.name = "june.2016")
+
+# july.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-07-01", end.date = "2016-07-31", camop = camera.operation.matrix, timeperiod.name = "july.2016")
+
+# august.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-08-01", end.date = "2016-08-31", camop = camera.operation.matrix, timeperiod.name = "august.2016")
+
+# september.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-09-01", end.date = "2016-09-30", camop = camera.operation.matrix, timeperiod.name = "september.2016")
+
+# october.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-10-01", end.date = "2016-10-31", camop = camera.operation.matrix, timeperiod.name = "october.2016")
+
+# november.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-11-01", end.date = "2016-11-30", camop = camera.operation.matrix, timeperiod.name = "november.2016")
+
+# december.2016 <- rai.calculate(record.table = record.table.all, start.date = "2016-12-01", end.date = "2016-12-31", camop = camera.operation.matrix, timeperiod.name = "december.2016")
+
+# january.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-01-01", end.date = "2017-01-31", camop = camera.operation.matrix, timeperiod.name = "january.2017")
+
+# february.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-02-01", end.date = "2017-02-28", camop = camera.operation.matrix, timeperiod.name = "february.2017")
+
+# march.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-03-01", end.date = "2017-03-31", camop = camera.operation.matrix, timeperiod.name = "march.2017")
+
+# april.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-04-01", end.date = "2017-04-30", camop = camera.operation.matrix, timeperiod.name = "april.2017")
+
+# may.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-05-01", end.date = "2017-05-31", camop = camera.operation.matrix, timeperiod.name = "may.2017")
+
+# june.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-06-01", end.date = "2017-06-30", camop = camera.operation.matrix, timeperiod.name = "june.2017")
+
+# july.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-07-01", end.date = "2017-07-31", camop = camera.operation.matrix, timeperiod.name = "july.2017")
+
+# august.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-08-01", end.date = "2017-08-31", camop = camera.operation.matrix, timeperiod.name = "august.2017")
+
+# september.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-09-01", end.date = "2017-09-30", camop = camera.operation.matrix, timeperiod.name = "september.2017")
+
+# october.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-10-01", end.date = "2017-10-31", camop = camera.operation.matrix, timeperiod.name = "october.2017")
+
+# november.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-11-01", end.date = "2017-11-30", camop = camera.operation.matrix, timeperiod.name = "november.2017")
+
+# december.2017 <- rai.calculate(record.table = record.table.all, start.date = "2017-12-01", end.date = "2017-12-31", camop = camera.operation.matrix, timeperiod.name = "december.2017")
+
+# january.2018 <- rai.calculate(record.table = record.table.all, start.date = "2018-01-01", end.date = "2018-01-31", camop = camera.operation.matrix, timeperiod.name = "january.2018")
+
+# february.2018 <- rai.calculate(record.table = record.table.all, start.date = "2018-02-01", end.date = "2016-12-28", camop = camera.operation.matrix, timeperiod.name = "february.2018")
+
+## all rai code
+all.rai <- rbind(march.2016, april.2016, may.2016, june.2016, july.2016, august.2016, september.2016, october.2016, november.2016, december.2016, january.2017, february.2017, march.2017, april.2017, may.2017, june.2017, july.2017, august.2017, september.2017, october.2017, november.2017, december.2017)
+
+
+## loop code
+  if (all.rai$TimePeriod[i] == "june.2016" | all.rai$TimePeriod[i] == "july.2016" ) {
+    all.rai$montht[i] <- "June2016"
+  }
+  if (all.rai$TimePeriod[i] == "july.2016" | all.rai$TimePeriod[i] == "august.2016" ) {
+    all.rai$montht[i] <- "July2016"
+  }
+  if (all.rai$TimePeriod[i] == "august.2016" | all.rai$TimePeriod[i] == "september.2016" ) {
+    all.rai$montht[i] <- "August2016"
+  }
+  if (all.rai$TimePeriod[i] == "september.2016" | all.rai$TimePeriod[i] == "october.2016" ) {
+    all.rai$montht[i] <- "September2016"
+  }
+  if (all.rai$TimePeriod[i] == "october.2016" | all.rai$TimePeriod[i] == "november.2016" ) {
+    all.rai$montht[i] <- "October2016"
+  }
+  if (all.rai$TimePeriod[i] == "november.2016" | all.rai$TimePeriod[i] == "december.2016" ) {
+    all.rai$montht[i] <- "November2016"
+  }
+  if (all.rai$TimePeriod[i] == "december.2016" | all.rai$TimePeriod[i] == "january.2017" ) {
+    all.rai$montht[i] <- "December2016"
+  }
+  if (all.rai$TimePeriod[i] == "january.2017" | all.rai$TimePeriod[i] == "february.2017" ) {
+    all.rai$montht[i] <- "January2017"
+  }
+  if (all.rai$TimePeriod[i] == "february.2017" | all.rai$TimePeriod[i] == "march.2017" ) {
+    all.rai$montht[i] <- "February2017"
+  }
+  if (all.rai$TimePeriod[i] == "march.2017" | all.rai$TimePeriod[i] == "april.2017" ) {
+    all.rai$montht[i] <- "March2017"
+  }
+  if (all.rai$TimePeriod[i] == "april.2017" | all.rai$TimePeriod[i] == "may.2017" ) {
+    all.rai$montht[i] <- "April2017"
+  }
+  if (all.rai$TimePeriod[i] == "may.2017" | all.rai$TimePeriod[i] == "june.2017" ) {
+    all.rai$montht[i] <- "May2017"
+  }
+  if (all.rai$TimePeriod[i] == "june.2017" | all.rai$TimePeriod[i] == "july.2017" ) {
+    all.rai$montht[i] <- "June2017"
+  }
+  if (all.rai$TimePeriod[i] == "july.2017" | all.rai$TimePeriod[i] == "august.2017" ) {
+    all.rai$montht[i] <- "July2017"
+  }
+  if (all.rai$TimePeriod[i] == "august.2017" | all.rai$TimePeriod[i] == "september.2017" ) {
+    all.rai$montht[i] <- "August2017"
+  }
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Kaitlyn's Shiny Code -- ignore for now
 ```{r}
 
 # Data import -------------------------------------------------------------
