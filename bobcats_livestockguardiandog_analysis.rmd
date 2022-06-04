@@ -578,6 +578,15 @@ Time to graph!
 Question 1: Generally Exploring Bobcat Activity
 
 ```{r}
+## Total number of bobcat detections
+x <- subset(all.rai, Class == "Bobcat")$Count
+
+sum(x, na.rm = TRUE) # Sum is 698 bobcats
+
+y <- subset(all.rai, Class == "Bobcat" & Camera == "G11")$Count
+
+sum(y, na.rm = TRUE) # Sum is 698 bobcats
+
 ## Upload my subsetted csv
 subset.rai = read.csv("subset.rai.csv")
 
@@ -601,6 +610,29 @@ ggplot(subset.rai, aes(x = Sheep, y = Bobcat_RAI, fill = Sheep)) +
   scale_y_log10() +
   facet_wrap(~ Fire) 
   labs(x ="Before and After Fire", y = "Relative Bobcat Activity (detections/month)") +
-  scale_fill_manual(values=c("cadetblue4", "orange1")) 
+  scale_fill_manual(values=c("cadetblue4", "orange1")) +
+  ggsave("figures/bobcat_sheepYorN_FireYorN.png", width = 4, height = 4)
+
+  
+## Making a Species Richness Map
+detectionMaps(CTtable = cam.operation.all.phases, 
+              recordTable = record.table.all, 
+              stationCol = "Camera", 
+              Xcol = "Latitude", 
+              Ycol = "Longitude",
+              richnessPlot = TRUE,
+              printLabels = TRUE)
+
+## Graphing Seasonality
+ggplot(subset.rai, aes(x = Month, y = Bobcat_RAI, fill = Season)) +
+  geom_col() +
+   ggsave("figures/bobcat_seasonality_bymonth.png", width = 10, height = 10)
+
+ggplot(subset.rai, aes(x = Season, y = Bobcat_RAI, fill = Season)) +
+  geom_col() +
+  labs(x ="Seasonal", y = "Relative Bobcat Activity") +
+  ggsave("figures/bobcat_seasonality.png", width = 10, height = 10)
+
+```
 ```
 
