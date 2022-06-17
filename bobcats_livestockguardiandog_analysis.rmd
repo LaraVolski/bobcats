@@ -585,7 +585,7 @@ sum(x, na.rm = TRUE) # Sum is 698 bobcats
 
 y <- subset(all.rai, Class == "Bobcat" & Camera == "G11")$Count
 
-sum(y, na.rm = TRUE) # Sum is 698 bobcats
+sum(y, na.rm = TRUE) 
 
 ## Upload my subsetted csv
 subset.rai = read.csv("subset.rai.csv")
@@ -633,6 +633,26 @@ ggplot(subset.rai, aes(x = Season, y = Bobcat_RAI, fill = Season)) +
   labs(x ="Seasonal", y = "Relative Bobcat Activity") +
   ggsave("figures/bobcat_seasonality.png", width = 10, height = 10)
 
-```
+## Count per Season
+
+countbyseason = read.csv("countbyseason.csv")
+
+spring <- subset(countbyseason, Season == "Spring")$Count
+
+sum(spring, na.rm = TRUE) #183
+
+summer <- subset(countbyseason, Season == "Summer")$Count
+
+sum(summer, na.rm = TRUE) #80
+
+fall <- subset(countbyseason, Season == "Fall")$Count
+
+sum(fall, na.rm = TRUE) #174
+
+winter <- subset(countbyseason, Season == "Winter")$Count
+
+sum(winter, na.rm = TRUE) #261
+
+
 ```
 
