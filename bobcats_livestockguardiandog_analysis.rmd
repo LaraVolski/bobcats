@@ -655,4 +655,9 @@ sum(winter, na.rm = TRUE) #261
 
 
 ```
+Question 1.1: Exploring Env. Variables
+```{r}
+# Elevation
+hist(metadata$rugged121.clean) #Distribution - ok, 
+```
 
