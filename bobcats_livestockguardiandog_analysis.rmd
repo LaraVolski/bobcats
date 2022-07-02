@@ -588,7 +588,7 @@ y <- subset(all.rai, Class == "Bobcat" & Camera == "G11")$Count
 sum(y, na.rm = TRUE) 
 
 ## Upload my subsetted csv
-subset.rai = read.csv("subset.rai.csv")
+subset.rai = read.csv("subset.rai.csv", fileEncoding = 'UTF-8-BOM')
 
 ## Graph Bobcat RAI by Sheep Presence
 ggplot(subset.rai, aes(x = Sheep, y = Bobcat_RAI, fill = Sheep)) +
@@ -622,6 +622,9 @@ detectionMaps(CTtable = cam.operation.all.phases,
               Ycol = "Longitude",
               richnessPlot = TRUE,
               printLabels = TRUE)
+```
+
+```{r Seasonality}
 
 ## Graphing Seasonality
 ggplot(subset.rai, aes(x = Month, y = Bobcat_RAI, fill = Season)) +
@@ -632,6 +635,15 @@ ggplot(subset.rai, aes(x = Season, y = Bobcat_RAI, fill = Season)) +
   geom_col() +
   labs(x ="Seasonal", y = "Relative Bobcat Activity") +
   ggsave("figures/bobcat_seasonality.png", width = 10, height = 10)
+
+ggplot(subset.rai, aes(x = Bobcat_RAI, fill = Season)) +
+  geom_density(kernel = "gaussian", trim = TRUE) +
+    facet_wrap(~ Season)
+
+ggplot(subset.rai, aes(Bobcat_RAI, fill = Season, colour = Season)) +
+  geom_density(position = "stack") +
+  xlim(0, 0.1) +
+  ggsave("figures/bobcat_seasonality_density.png", width = 10, height = 10)
 
 ## Count per Season
 
@@ -653,11 +665,73 @@ winter <- subset(countbyseason, Season == "Winter")$Count
 
 sum(winter, na.rm = TRUE) #261
 
-
 ```
+
 Question 1.1: Exploring Env. Variables
 ```{r}
-# Elevation
-hist(metadata$rugged121.clean) #Distribution - ok, 
+
+#rugged81.clean
+
+ggplot(subset.rai, aes(x = rugged81.clean, y = Bobcat_RAI)) +
+  geom_smooth(method = lm) +
+   ggsave("figures/rugged81.png", width = 4, height = 4)
+
+
+#rugged121.clean
+ggplot(subset.rai, aes(x = rugged121.clean, y = Bobcat_RAI)) +
+  geom_smooth(method = lm) +
+  ggsave("figures/rugged121.png", width = 4, height = 4)
+
+#road.dist.clean
+ggplot(subset.rai, aes(x = road.dist.clean, y = Bobcat_RAI)) +
+  geom_smooth(method = lm) +
+  ggsave("figures/roaddist.png", width = 4, height = 4)
+
+#elevation.clean
+ggplot(subset.rai, aes(x = elevation.clean, y = Bobcat_RAI)) +
+  geom_smooth(method = lm) +
+  ggsave("figures/elevation.png", width = 4, height = 4)
+
+#slope.clean
+ggplot(subset.rai, aes(x = slope.clean, y = Bobcat_RAI)) +
+  geom_smooth(method = lm) +
+  ggsave("figures/slope.png", width = 4, height = 4)
+
+#vegetation.coarser.clean (discrete!)
+ggplot(subset.rai, aes(x = vegetation.coarser.clean, y = Bobcat_RAI)) +
+  geom_bar(stat = "identity") +
+  ggsave("figures/veg.png", width = 4, height = 4)
+
 ```
+
+Question 1.2: Dredging Env. Variables -- before dogs or Foxlights
+```{r}
+# Step 1 - Set up a model with all the variables of interest. You should be able to use one of your existing models and just add all the variables of interest
+#Here is an example from the risk mapping paper I led, but note that it's a logistic model, so yours will look slightly different
+#the main takeaway is, you can throw a lot of variables in to start!
+
+full.model <- lmer(Count ~ Fire + Season + rugged81.clean + rugged121.clean + road.dist.clean + elevation.clean + slope.clean + vegetation.coarser.clean + Sheep_RAI + (1|Camera),
+                      data = subset.rai, na.action = "na.fail")
+
+AIC(full.model) ## AIC is 5626.726
+vif(full.model) ## Rugged81 has a slightly higher VIF, so I cut that one between the two ruggeds
+
+reduced.model <- lmer(Count ~ Fire + Season + rugged121.clean + road.dist.clean + elevation.clean + slope.clean + vegetation.coarser.clean + Sheep_RAI + (1|Camera),
+                      data = subset.rai, na.action = "na.fail")
+
+AIC(reduced.model) ## AIC is 5626.476
+vif(reduced.model) ## VIF under 4 for all
+
+#Now, to dredge! First install and load the MuMIn package
+install.packages("MuMIn")
+library(MuMIn)
+
+#Then dredging is as simple as...
+dredge.reduced.model <- dredge(reduced.model)
+
+fit.null <- glmer.nb(Count ~ offset(log(Operation)) + (1|Camera), data = subset.rai)
+summary(fit.null)
+```
+
+
 
