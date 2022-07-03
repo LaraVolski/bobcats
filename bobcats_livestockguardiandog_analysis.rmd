@@ -729,8 +729,14 @@ library(MuMIn)
 #Then dredging is as simple as...
 dredge.reduced.model <- dredge(reduced.model)
 
-fit.null <- glmer.nb(Count ~ offset(log(Operation)) + (1|Camera), data = subset.rai)
-summary(fit.null)
+fit.fire <- glmer.nb(Count ~ Fire + (1|Camera), data = subset.rai)
+summary(fit.fire)
+
+fit.rugged <- glmer.nb(Count ~ rugged121.clean + (1|Camera), data = subset.rai)
+summary(fit.rugged)
+
+fit.season <- glmer.nb(Count ~ Season + (1|Camera), data = subset.rai)
+summary(fit.season)
 ```
 
 
